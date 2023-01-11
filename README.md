@@ -135,3 +135,4 @@ Convert `terraform.tfplan` to user readable JSON file `terraform.tfplan.json` us
 * Add proper frontend and backend services 
 * Add gitlab-ci config
 * Add feasibility study
+* If ECR will be used, add it to terraform config
