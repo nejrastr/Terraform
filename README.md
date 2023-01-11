@@ -1,92 +1,133 @@
-# terraform-task
+### Task
+
+**NOTE:** Resources in private subnets connect to internet using public NAT gateway. When you provision a NAT gateway, you are charged for each hour that your NAT gateway is available and each Gigabyte of data that it processes. Because of this, Database will not be deployed in private subnet
+
+* Create `arm_vpc` VPC:
+    * Use `192.168.1.0/24` CIDR
+    * Split VPC into two equal sized subnets, `arm_subnet_private` and `arm_subnet_public`
+    * Allow all incoming HTTP and HTTPS connections
+    * Allow SSH connection from your device only
+    * Allow all outgoing HTTP and HTTPS connections
+    * All incoming and outgoing traffic in the security group should be allowed
+* Create ECS cluster `arm_ecs_cluster` where frontend and backend apps will be deployed as tasks:
+    * Cluster should use `t3.micro` EC2 instance
+    * EC2 instance should be in `public` subnet
+    * Root block device should be encrypted
+    * EC2 instance should be accessible using SSH protocol
+    * Autoscaling group should be configured to allow max 1 instance
+    * ECS cluster should have task definitions for Frontend and Backend services
+* Create `arm_database` EC2 instance for Database:
+    * EC2 instance should be in `private` subnet
+    * Root block device should be encrypted
+
+Deploy Frontend and Backend app in ECS cluster with EC2 instance. 
+
+~Database (postgres) should be deployed on separate EC2~
+
+### SSH
+
+Create SSH keypair which will be used for access to EC2 insance
+
+https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#generating-a-new-ssh-key
+
+### Terraform
+
+Use [standard module structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure). Consider splitting resources in multiple configuration files (e.g `network.tf` for network configuration, `iam.tf` for IAM config etc.).
+
+Free plan allows t2.micro and t3.micro EC2 instances. Some regions do not have t2.micro instances available. t3.micro is recommended. Since Free tier allows 750 h/month, any AWS region is acceptable.
+
+Create Terraform workspace `arm` (Administracija Racunarskih Mreza)
+
+Terraform configuration should include:
+
+#### Network configuration
+
+1. Resource `arm_vpc` which creates [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html) used for EC2 instance:
+    * Set 192.168.1.0/26 CIDR 
+1. Resources `arm_subnet_private` and `arm_subnet_public` with subnets for new VPC:
+    * Split 192.168.1.0/26 CIDR in two equal subnets, `arm_subnet_private` and `arm_subnet_public`
+1. Resource `arm_igw` which creates [internet gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html) for `arm_vpc`
+1. Resource `arm_public_rt` which routes all traffic to `arm_igw`
+1. Associate `arm_public_rt` with `arm_subnet_public`
+1. Resource `arm_security_group` which creates [Security group](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html) for EC2 instance:
+    * Attach it to `arm_vpc` created in previous step
+    * Allow SSH incomming traffic from your source IP
+    * Allow HTTP and HTTPS outgoing traffic to all destinations
+    * Allow all incoming and outgoing traffic in the security group
+
+#### IAM configuration
+
+1. Resource `ecs_task_execution_role` which creates IAM Role for ECS tasks:
+    * ECS tasks should be able to assume this role
+    * Attach AWS managed `AmazonECSTaskExecutionRolePolicy`
+    * Check [AWS ECS documentation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html#create-task-execution-role) for more info
+1. Resource `ecs_instance_role` which creates IAM role for EC2 instances in ECS cluster:
+    * EC2 instances should be able to assume this role
+    * Attach AWS Managed `AmazonEC2ContainerServiceforEC2Role` policy
+1. Resource `ecs_instance_role` to pass `ecs_instance_role` IAM role to an EC2 instance:
+    * More info about [instance profile](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#ec2-instance-profile)
+
+#### Keys configuration
+
+1. Resource `arm_ec2_access_key` which will create [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
+1. Resource `ebs_encryption_key` which will create `kms_key`. This key will be used to encrypt EC2 instances' EBS volume:
+    * [Amazon EC2 Auto Scaling uses service-linked roles to delegate permissions to other AWS services](https://docs.aws.amazon.com/autoscaling/ec2/userguide/key-policy-requirements-EBS-encryption.html). KMS Key policy needs to allow this user to use this key
+    * Configure kms_key policy to allow all kms actions to users `root`, `current user` and `AWSServiceRoleForAutoScaling` role
+    * Use `aws_iam_policy_document` resource for key policy definition and refer it's json value in kms_key resource definition
+
+#### EC2 configuration
+
+1. Data source `ecs_optimized_amazon_linux_ami` which will contain information about AWS AMI which will be used for ECS EC2 instance:
+    * Use latest Amazon [ECS Optimized AMI](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html)
+    * Root device type should be EBS
+1. Data source `amazon_linux_ami` which will contain information about AWS AMI which will be used for EC2 instance:
+    * Use any Linux based AMI
+    * Root device type should be EBS
+1. Resource `arm_launch_template` which creates Launch template which will be used in Autoscaling group ([AWS Launch configurations are deprecated](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html?icmpid=docs_ec2as_help_panel)):
+    * Use `ecs_optimized_amazon_linux_ami` image
+    * use `t3.micro` instance type
+    * Use `arm_ec2_access_key` key pair for SSH access
+    * Instance should be deployed in VPC with `arm_security_group` security group
+    * ECS agent starts with `default` cluster configured. It needs to be changed to `arm_ecs_cluster` name. [user_data](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/launch_template#user_data) can be used to provide init script. Consider using [base64encode](https://developer.hashicorp.com/terraform/language/functions/base64encode) and [templatefile](https://developer.hashicorp.com/terraform/language/functions/templatefile) functions
+    * Encrypt EBS volume using `ebs_encryption_key` key
+    * Attach `ecs_instance_role` IAM instance profile
+1. Resource `arm_autoscaling_group` which handles number of available EC2 instances:
+    * maximum size should be set to 1
+    * instances should be placed in `arm_subnet_public`
+    * `arm_launch_template` should be used
+
+#### ECS configuration
+
+1. Resource `arm_ecs_cluster` which creates ECS cluster
+1. Resources `frontend_task_definition`, `backend_task_definition` and `database_task_definition` to define container configuration for apps:
+    * AWS documentation for [task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html)
+1. Resources `frontend_service`, `backend_service`, `database_service` which will run and maintain task definitions:
+    * AWS documentation for [ECS services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html)
+
+_**Not used for this task**_
+1. Resource `arm_server_private` wich will create EC2 instance:
+    * Use `t3.micro` instance type
+    * Encrypt Root block device with `ebs_encryption_key`
+    * Use `arm_ec2_access_key` key pair for SSH access
+    * Attach to `arm_security_group`
+    * Use public `arm_subnet_private`
+
+Tips:
+* Install and configure Terraform https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli
+* Use `terraform destroy` to save resources
+* Consider using Terraform variables https://developer.hashicorp.com/terraform/language/values/variables
+* Use aws terraform provider https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+    * Image AMI, along with it's properties, can be found at EC2 AMIs section (note, default filter is `Owned by Me`. Change it to `Public Images`)
+    * `aws_ami` resource combined with key:value filter can provide more flexible AMI selection
+    * IANA protocol numbers list https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
+    * VPC with private and public subnets https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Scenario2.html
+    * Check [AWS Managed Policies for ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-iam-awsmanpol.html)
+    * Using [aws_iam_policy_document data source](https://developer.hashicorp.com/terraform/tutorials/aws/aws-iam-policy#refactor-your-policy) is preffered over inline definition
 
 
+Use `terrafrom plan` to create execution plan and save it to file `terraform.tfplan`. Note:
+> Terraform will allow any filename for the plan file, but a typical convention is to name it tfplan. Do not name the file with a suffix that Terraform recognizes as another file format; if you use a .tf suffix then Terraform will try to interpret the file as a configuration source file, which will then cause syntax errors for subsequent commands.
 
-## Getting started
+Convert `terraform.tfplan` to user readable JSON file `terraform.tfplan.json` using `terraform show` command.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/kibrovic/terraform-task.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.com/kibrovic/terraform-task/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
