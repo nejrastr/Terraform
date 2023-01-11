@@ -10,6 +10,7 @@ stages:
     - terraform init
 
 terrafrom_deploy:
+  <<: *init_script
   stage: build
   script:
     - terraform plan -out terraform.tfplan -var-file="terraform.tfvars"
@@ -19,6 +20,7 @@ terrafrom_deploy:
       when: manual
 
 terraform_destroy:
+  <<: *init_script
   stage: destroy
   script:
     - terraform destroy
