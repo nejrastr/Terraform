@@ -1,0 +1,13 @@
+stages:
+  - deploy
+
+terrafrom_deploy:
+  image: ubuntu:22.04
+  stage: deploy
+  before_script:
+    - bash ./scripts/init.sh
+  script:
+    - terraform plan -out terraform.tfplan
+    - terraform apply "terraform.tfplan"
+  rules:
+    when: manual
