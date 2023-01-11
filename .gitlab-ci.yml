@@ -1,12 +1,27 @@
 stages:
-  - deploy
+  - build
+  - destroy
 
-terrafrom_deploy:
+.init_script: &init_script
   image: ubuntu:22.04
-  stage: deploy
   before_script:
     - bash ./scripts/init.sh
     - envsubst < scripts/terraform.tfvars.template > terraform.tfvars
+    - terraform init
+
+terrafrom_deploy:
+  stage: build
   script:
     - terraform plan -out terraform.tfplan -var-file="terraform.tfvars"
-    - terraform apply "terraform.tfplan" 
+#    - terraform apply "terraform.tfplan" 
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+
+terraform_destroy:
+  stage: destroy
+  script:
+    - terraform destroy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
