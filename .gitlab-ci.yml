@@ -9,5 +9,3 @@ terrafrom_deploy:
   script:
     - terraform plan -out terraform.tfplan
     - terraform apply "terraform.tfplan"
-  rules:
-    when: manual
