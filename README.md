@@ -130,4 +130,8 @@ Use `terrafrom plan` to create execution plan and save it to file `terraform.tfp
 
 Convert `terraform.tfplan` to user readable JSON file `terraform.tfplan.json` using `terraform show` command.
 
+## TODO
 
+* Add proper frontend and backend services 
+* Add gitlab-ci config
+* Add feasibility study
