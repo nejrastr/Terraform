@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install terraform
-apt-get update && apt-get install -y gnupg software-properties-common gettext wget unzip
+apt-get update && apt-get install -y gnupg software-properties-common gettext wget unzip curl
 
 wget -O- https://apt.releases.hashicorp.com/gpg | \
   gpg --dearmor | \

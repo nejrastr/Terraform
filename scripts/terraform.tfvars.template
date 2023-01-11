@@ -1,0 +1,6 @@
+vpc_cidr = "${VPC_CIDR}"
+private_subnet = "${PRIVATE_SUBNET}"
+public_subnet = "${PUBLIC_SUBNET}"
+user_source_ip = "${USER_SOURCE_IP}"
+ssh_pubkey = "${SSH_PUBKEY}"
+
