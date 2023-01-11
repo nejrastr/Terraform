@@ -13,11 +13,11 @@ data "aws_iam_policy_document" "ebs_encryption_kms_key_policy" {
         "${data.aws_caller_identity.current.arn}"
       ]
     }
-    actions = ["kms:*"]
+    actions   = ["kms:*"]
     resources = ["*"]
   }
   statement {
-    sid = "Allow service-linked role use of the customer managed key"
+    sid    = "Allow service-linked role use of the customer managed key"
     effect = "Allow"
     principals {
       type = "AWS"
@@ -38,7 +38,7 @@ data "aws_iam_policy_document" "ebs_encryption_kms_key_policy" {
   }
 
   statement {
-    sid = "Allow attachment of persistent resources"
+    sid    = "Allow attachment of persistent resources"
     effect = "Allow"
     principals {
       type = "AWS"
@@ -48,12 +48,12 @@ data "aws_iam_policy_document" "ebs_encryption_kms_key_policy" {
         "arn:aws:iam::${local.account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
       ]
     }
-    actions = [ "kms:CreateGrant" ]
+    actions   = ["kms:CreateGrant"]
     resources = ["*"]
     condition {
-      test = "Bool"
+      test     = "Bool"
       variable = "kms:GrantIsForAWSResource"
-      values = [true]
+      values   = [true]
     }
   }
 }
