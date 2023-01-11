@@ -16,9 +16,9 @@
     * EC2 instance should be accessible using SSH protocol
     * Autoscaling group should be configured to allow max 1 instance
     * ECS cluster should have task definitions for Frontend and Backend services
-* Create `arm_database` EC2 instance for Database:
-    * EC2 instance should be in `private` subnet
-    * Root block device should be encrypted
+* ~Create `arm_database` EC2 instance for Database:~
+    * ~EC2 instance should be in `private` subnet~
+    * ~Root block device should be encrypted~
 
 Deploy Frontend and Backend app in ECS cluster with EC2 instance. 
 
