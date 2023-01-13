@@ -51,8 +51,8 @@ resource "aws_launch_template" "arm_launch_template" {
 resource "aws_autoscaling_group" "arm_autoscaling_group" {
   name_prefix               = "arm_autoscaling_group"
   max_size                  = 2
-  min_size                  = 2
-  vpc_zone_identifier       = [aws_subnet.arm_subnet_public.id, aws_subnet.arm_subnet_private.id]
+  min_size                  = 1
+  vpc_zone_identifier       = [aws_subnet.arm_subnet_public.id]
   wait_for_capacity_timeout = "2m"
 
   launch_template {
@@ -63,4 +63,21 @@ resource "aws_autoscaling_group" "arm_autoscaling_group" {
   depends_on = [
     aws_launch_template.arm_launch_template
   ]
+}
+
+resource "aws_instance" "arm_server_private" {
+  ami                    = data.aws_ami.ecs_optimized_amazon_linux_ami.id
+  iam_instance_profile   = aws_iam_instance_profile.ecs_instance_role.name
+  instance_type          = "t3.micro"
+  key_name               = aws_key_pair.arm_ec2_access_key.key_name
+  vpc_security_group_ids = [resource.aws_security_group.arm_security_group.id]
+  subnet_id              = aws_subnet.arm_subnet_private.id
+  user_data_base64 = base64encode(templatefile("./templates/user_data.tpl", {
+    cluster_name = aws_ecs_cluster.arm_ecs_cluster.name
+  }))
+
+  root_block_device {
+    encrypted  = true
+    kms_key_id = resource.aws_kms_key.ebs_encryption_key.arn
+  }
 }
