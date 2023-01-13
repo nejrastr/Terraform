@@ -3,7 +3,7 @@
 * AWS Account
 * [Installed aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 * [Configured AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html) - Configuration file for academy account can be found in `AWS Details` section of your Learner Lab
-* [Installed Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)e
+* [Installed Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
 
 ## Task
 
@@ -19,7 +19,7 @@
     * Cluster should use `t3.micro` EC2 instances
     * Autoscaling group should be configured to require 1 instance and allow max 2 instances
     * EC2 instance autoscaling group should place nodes in `public` subnet
-    * Single EC2 instance should be in `private` subnet
+    * Database EC2 instance should be in `private` subnet
     * Root block devices should be encrypted
     * EC2 instances should be accessible using SSH protocol
     * ECS cluster should have task definitions for Frontend and Database services
