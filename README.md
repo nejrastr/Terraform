@@ -1,20 +1,20 @@
 ### Task
 
-**NOTE:** Resources in private subnets connect to internet using public NAT gateway. When you provision a NAT gateway, you are charged for each hour that your NAT gateway is available and each Gigabyte of data that it processes. Because of this, Database will not be deployed in private subnet
-
 * Create `arm_vpc` VPC:
     * Use `192.168.1.0/24` CIDR
+    * Enable DNS hostnames in VPC
     * Split VPC into two equal sized subnets, `arm_subnet_private` and `arm_subnet_public`
     * Allow all incoming HTTP and HTTPS connections
     * Allow SSH connection from your device only
     * Allow all outgoing HTTP and HTTPS connections
     * All incoming and outgoing traffic in the security group should be allowed
 * Create ECS cluster `arm_ecs_cluster` where frontend and backend apps will be deployed as tasks:
-    * Cluster should use `t3.micro` EC2 instance
-    * EC2 instance should be in `private` or `public` subnet
-    * Root block device should be encrypted
-    * EC2 instance should be accessible using SSH protocol
-    * Autoscaling group should be configured to require 2 instances and allow max 2 instances
+    * Cluster should use `t3.micro` EC2 instances
+    * Autoscaling group should be configured to require 1 instance and allow max 2 instances
+    * EC2 instance autoscaling group should place nodes in `public` subnet
+    * Single EC2 instance should be in `private` subnet
+    * Root block devices should be encrypted
+    * EC2 instances should be accessible using SSH protocol
     * ECS cluster should have task definitions for Frontend and Database services
     * Frontend service needs to be placed in Public subnet
     * Database service needs to be placed in Private subnet
@@ -39,6 +39,7 @@ Terraform configuration should include:
 
 1. Resource `arm_vpc` which creates [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html) used for EC2 instance:
     * Set 192.168.1.0/26 CIDR 
+    * Enable DNS hostnamces in VPC
 1. Resources `arm_subnet_private` and `arm_subnet_public` with subnets for new VPC:
     * Split 192.168.1.0/26 CIDR in two equal subnets, `arm_subnet_private` and `arm_subnet_public`
 1. Resource `arm_igw` which creates [internet gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html) for `arm_vpc`
@@ -81,7 +82,7 @@ Terraform configuration should include:
 1. Data source `ecs_optimized_amazon_linux_ami` which will contain information about AWS AMI which will be used for ECS EC2 instance:
     * Use latest Amazon [ECS Optimized AMI](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html)
     * Root device type should be EBS
-1. Resource `arm_launch_template` which creates Launch template which will be used in Autoscaling group ([AWS Launch configurations are deprecated](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html?icmpid=docs_ec2as_help_panel)):
+1. Resource `arm_launch_template` which creates Launch template for Autoscaling group ([AWS Launch configurations are deprecated](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-configurations.html?icmpid=docs_ec2as_help_panel)):
     * Use `ecs_optimized_amazon_linux_ami` image
     * use `t3.micro` instance type
     * Use `arm_ec2_access_key` key pair for SSH access
@@ -90,9 +91,18 @@ Terraform configuration should include:
     * Encrypt EBS volume using `ebs_encryption_key` key
     * Attach `ecs_instance_role` IAM instance profile
 1. Resource `arm_autoscaling_group` which handles number of available EC2 instances:
-    * minimum and maximum size should be set to 2
-    * instances should be placed in `arm_subnet_private` or `arm_subnet_public`
+    * set minimum size 1 and maximum size 2
+    * instances should be placed in `arm_subnet_public`
     * Latest `arm_launch_template` should be used
+1. Resource `arm_server_private` which creates EC2 instance for Database:
+    * Use `ecs_optimized_amazon_linux_ami` image
+    * use `t3.micro` instance type
+    * Instance should be deployed in VPC with `arm_security_group` security group
+    * ECS agent starts with `default` cluster configured. It needs to be changed to `arm_ecs_cluster` name. [user_data](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/launch_template#user_data) can be used to provide init script. Consider using [base64encode](https://developer.hashicorp.com/terraform/language/functions/base64encode) and [templatefile](https://developer.hashicorp.com/terraform/language/functions/templatefile) functions
+    * Encrypt EBS volume using `ebs_encryption_key` key
+    * Attach `ecs_instance_role` IAM instance profile
+    * Instance should be deployed in `arm_subnet_private`
+
 
 #### ECS configuration
 
@@ -103,6 +113,7 @@ Terraform configuration should include:
     * `database_task` should run on instance in Private subnet
 1. Resources `frontend_service` and `database_service` which will run and maintain task definitions:
     * AWS documentation for [ECS services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html)
+    * Dummy services can be used
 
 
 Tips:
