@@ -29,6 +29,10 @@ resource "aws_ecs_task_definition" "frontend_task" {
       ]
     }
   ])
+  placement_constraints {
+    type       = "memberOf"
+    expression = "attribute:ecs.subnet-id in [${aws_subnet.arm_subnet_public.id}]"
+  }
 }
 
 resource "aws_ecs_service" "frontend_service" {
@@ -39,7 +43,7 @@ resource "aws_ecs_service" "frontend_service" {
 }
 
 resource "aws_ecs_task_definition" "backend_task" {
-  family                   = "backend-service"
+  family                   = "backend-task"
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
   task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
@@ -59,6 +63,10 @@ resource "aws_ecs_task_definition" "backend_task" {
       ]
     }
   ])
+  placement_constraints {
+    type       = "memberOf"
+    expression = "attribute:ecs.subnet-id in [${aws_subnet.arm_subnet_private.id}]"
+  }
 }
 
 resource "aws_ecs_service" "backend_service" {
