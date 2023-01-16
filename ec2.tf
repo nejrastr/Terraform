@@ -46,6 +46,10 @@ resource "aws_launch_template" "arm_launch_template" {
   lifecycle {
     create_before_destroy = true
   }
+
+  tags = {
+    "Name" = "PublicServer"
+  }
 }
 
 resource "aws_autoscaling_group" "arm_autoscaling_group" {
@@ -60,6 +64,12 @@ resource "aws_autoscaling_group" "arm_autoscaling_group" {
     version = "$Latest"
   }
 
+  tag {
+    key = "Name"
+    value = "PublicServer"
+    propagate_at_launch = true
+  }
+
   depends_on = [
     aws_launch_template.arm_launch_template
   ]
@@ -69,7 +79,6 @@ resource "aws_instance" "arm_server_private" {
   ami                    = data.aws_ami.ecs_optimized_amazon_linux_ami.id
   iam_instance_profile   = aws_iam_instance_profile.ecs_instance_role.name
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.arm_ec2_access_key.key_name
   vpc_security_group_ids = [resource.aws_security_group.arm_security_group.id]
   subnet_id              = aws_subnet.arm_subnet_private.id
   user_data_base64 = base64encode(templatefile("./templates/user_data.tpl", {
@@ -80,4 +89,9 @@ resource "aws_instance" "arm_server_private" {
     encrypted  = true
     kms_key_id = resource.aws_kms_key.ebs_encryption_key.arn
   }
+
+  tags = {
+    "Name" = "PrivateServer"
+  }
+
 }
