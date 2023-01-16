@@ -97,10 +97,12 @@ Terraform configuration should include:
     * ECS agent starts with `default` cluster configured. It needs to be changed to `arm_ecs_cluster` name. [user_data](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/launch_template#user_data) can be used to provide init script. Consider using [base64encode](https://developer.hashicorp.com/terraform/language/functions/base64encode) and [templatefile](https://developer.hashicorp.com/terraform/language/functions/templatefile) functions
     * Encrypt EBS volume using `ebs_encryption_key` key
     * Attach `ecs_instance_role` IAM instance profile
+    * Add tag `Name=PublicServer`
 1. Resource `arm_autoscaling_group` which handles number of available EC2 instances:
     * set minimum size 1 and maximum size 2
     * instances should be placed in `arm_subnet_public`
     * Latest `arm_launch_template` should be used
+    * Add tag `Name=PublicServer`
 1. Resource `arm_server_private` which creates EC2 instance for Database:
     * Use `ecs_optimized_amazon_linux_ami` image
     * use `t3.micro` instance type
@@ -109,6 +111,7 @@ Terraform configuration should include:
     * Encrypt EBS volume using `ebs_encryption_key` key
     * Attach `ecs_instance_role` IAM instance profile
     * Instance should be deployed in `arm_subnet_private`
+    * Add tag `Name=PrivateServer`
 
 
 #### ECS configuration
