@@ -126,7 +126,7 @@ Terraform configuration should include:
     * Dummy services can be used
 
 
-Tips:
+### Tips:
 * Install and configure Terraform https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli
 * When you provision a NAT gateway, you are charged for each hour that your NAT gateway is available and each Gigabyte of data that it processes.
 * Use `terraform destroy` to save resources
@@ -144,3 +144,24 @@ Use `terrafrom plan` to create execution plan and save it to file `terraform.tfp
 > Terraform will allow any filename for the plan file, but a typical convention is to name it tfplan. Do not name the file with a suffix that Terraform recognizes as another file format; if you use a .tf suffix then Terraform will try to interpret the file as a configuration source file, which will then cause syntax errors for subsequent commands.
 
 Convert `terraform.tfplan` to user readable JSON file `terraform.tfplan.json` using `terraform show` command.
+
+## Teacher Guide
+
+1. Terraform intro:
+    * IaC (idea, concepts, use case, tools, CloudFormation AWS specific, Terraform cloud agnostic)
+    * What are resources, data sources, providers (basic information, syntax)
+    * What are modules, benefits (reuse configuration), types (root, child, local, published), using modules (local, published), module sources
+    * Variables (input variables, secrets, `.tfvars` file), expressions and functions (basic info, students should know it exists and can be used)
+    * What is state and it's purpose, remote vs local state (e.g working in a team), remote state and workspaces (basic info, use case)
+    * Which files contains sensitive data, what to include in `.gitignore`
+    * Show [standard module structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure). Consider splitting resources in multiple configuration files (e.g `network.tf` for network configuration, `iam.tf` for IAM config etc.).
+    * Explain commands `plan`, `apply`, `destroy`, `state` subcommands  
+1. ECS intro:
+    * Basic info, compare with `docker compose` and `kubernetes`
+    * Explain cluster, task definition and service
+    * Go through task description (detailed part) and explain what and why is each resource created
+    * For IAM section explain difference between student account and normal use case
+1. Practical part with assistance [minimum]:
+    * Students should create VPC, Private and Public subnets, Internet gateway, public route table, associate public route table with public subnet
+    * During this process, students should learn how to use `init`, `plan`, `apply` and `destroy`
+1. Rest of task should be a homework and is required for [gitlab-task](https://gitlab.com/kibrovic/gitlab-task/-/tree/main)
