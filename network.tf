@@ -7,7 +7,7 @@ resource "aws_subnet" "arm_subnet_private" {
   vpc_id     = aws_vpc.arm_vpc.id
   cidr_block = var.private_subnet
   tags = {
-    "Name" = "Private"
+    "Name" = "Private_armz18919"
   }
 }
 
@@ -16,7 +16,7 @@ resource "aws_subnet" "arm_subnet_public" {
   cidr_block              = var.public_subnet
   map_public_ip_on_launch = true
   tags = {
-    "Name" = "Public"
+    "Name" = "Public_armz18919"
   }
 }
 
